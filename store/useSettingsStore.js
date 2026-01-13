@@ -24,7 +24,7 @@ export const useSettingsStore = create(
         const newSource = {
           ...source,
           id: Date.now().toString(),
-          enabled: false,
+          enabled: true,
         };
         return {
           [key]: [...state[key], newSource],

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MovieCard } from '../../components/MovieCard';
-import { Pagination } from '../../components/Pagination';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { searchVideos } from '../../lib/api';
 
@@ -16,6 +15,7 @@ export default function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [mediaType, setMediaType] = useState('all'); // 'all', 'movie', 'tv'
+  const [sourceFilter, setSourceFilter] = useState('all'); // 视频源筛选
   const videoSources = useSettingsStore((state) => state.videoSources);
 
   useEffect(() => {
@@ -59,12 +59,23 @@ export default function SearchContent() {
     }
   };
 
-  // 根据媒体类型过滤结果
+  // 根据媒体类型和视频源过滤结果
   const filteredResults = results.filter(result => {
-    if (mediaType === 'all') return true;
-    if (mediaType === 'movie') return result.type === 'movie';
-    if (mediaType === 'tv') return result.type === 'tv';
-    return true;
+    // 媒体类型筛选
+    let matchMediaType = true;
+    if (mediaType === 'movie') {
+      matchMediaType = result.type === 'movie';
+    } else if (mediaType === 'tv') {
+      matchMediaType = result.type === 'tv';
+    }
+
+    // 视频源筛选
+    let matchSource = true;
+    if (sourceFilter !== 'all') {
+      matchSource = result.source === sourceFilter;
+    }
+
+    return matchMediaType && matchSource;
   });
 
   return (
@@ -158,11 +169,16 @@ export default function SearchContent() {
                 找到 {filteredResults.length} 个关于 <span className="text-gray-900 font-bold text-2xl mx-1">"{query}"</span> 的结果
               </h2>
               <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>排序：</span>
-                <select className="bg-transparent border-none text-gray-900 font-medium focus:ring-0 cursor-pointer py-0 pr-8 pl-0">
-                  <option>相关度</option>
-                  <option>最新上映</option>
-                  <option>评分最高</option>
+                <span>视频源：</span>
+                <select
+                  className="bg-transparent border-none text-gray-900 font-medium focus:ring-0 cursor-pointer py-0 pr-8 pl-0"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                >
+                  <option value="all">全部</option>
+                  {videoSources.map(source => (
+                    <option key={source.key} value={source.key}>{source.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -172,8 +188,6 @@ export default function SearchContent() {
                 <MovieCard key={`${movie.source}-${movie.id}`} movie={movie} />
               ))}
             </div>
-
-            <Pagination />
           </>
         ) : query && results.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center py-20">

@@ -10,11 +10,12 @@ export const MovieCard = ({ movie }) => {
   );
 
   const handleClick = () => {
-    // 如果有 source 信息（从 API 搜索来的），则传递 source 参数
+    // 如果有 source 信息（从 API 搜索来的），则传递 source 参数到播放页面
     if (movie.source) {
       router.push(`/play/${movie.id}?source=${movie.source}`);
     } else {
-      router.push(`/play/${movie.id}`);
+      // 如果没有 source（豆瓣卡片），跳转到搜索页面，使用 title 搜索
+      router.push(`/search?q=${encodeURIComponent(movie.title)}`);
     }
   };
 
