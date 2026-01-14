@@ -78,6 +78,76 @@ export default function SearchContent() {
     return matchMediaType && matchSource;
   });
 
+  // Render content based on search state - clearer than nested ternaries
+  function renderContent() {
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-4"></div>
+          <p className="text-gray-500">正在搜索中...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
+            search_off
+          </span>
+          <p className="text-gray-500">{error}</p>
+        </div>
+      );
+    }
+
+    if (query && results.length > 0) {
+      return (
+        <>
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="text-xl text-gray-500 font-medium">
+              找到 {filteredResults.length} 个关于{" "}
+              <span className="text-gray-900 font-bold text-2xl mx-1">
+                "{query}"
+              </span>{" "}
+              的结果
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>视频源：</span>
+              <select
+                className="bg-transparent border-none text-gray-900 font-medium focus:ring-0 cursor-pointer py-0 pr-8 pl-0"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+              >
+                <option value="all">全部</option>
+                {videoSources.map((source) => (
+                  <option key={source.key} value={source.key}>
+                    {source.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            {filteredResults.map((movie) => (
+              <MovieCard key={`${movie.source}-${movie.id}`} movie={movie} />
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    // Empty state - no query or no results
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
+          search
+        </span>
+        <p className="text-gray-500">请输入关键词开始搜索</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-7xl flex flex-col gap-8 pt-6">
       <div className="flex flex-col items-center justify-start gap-6 w-full max-w-3xl mx-auto">
@@ -167,66 +237,7 @@ export default function SearchContent() {
       </div>
 
       <div>
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-4"></div>
-            <p className="text-gray-500">正在搜索中...</p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
-              search_off
-            </span>
-            <p className="text-gray-500">{error}</p>
-          </div>
-        ) : query && results.length > 0 ? (
-          <>
-            <div className="flex items-baseline justify-between mb-6">
-              <h2 className="text-xl text-gray-500 font-medium">
-                找到 {filteredResults.length} 个关于{" "}
-                <span className="text-gray-900 font-bold text-2xl mx-1">
-                  "{query}"
-                </span>{" "}
-                的结果
-              </h2>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>视频源：</span>
-                <select
-                  className="bg-transparent border-none text-gray-900 font-medium focus:ring-0 cursor-pointer py-0 pr-8 pl-0"
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                >
-                  <option value="all">全部</option>
-                  {videoSources.map((source) => (
-                    <option key={source.key} value={source.key}>
-                      {source.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-              {filteredResults.map((movie) => (
-                <MovieCard key={`${movie.source}-${movie.id}`} movie={movie} />
-              ))}
-            </div>
-          </>
-        ) : query && results.length === 0 && !loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
-              movie
-            </span>
-            <p className="text-gray-500">请输入关键词开始搜索</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
-              search
-            </span>
-            <p className="text-gray-500">请输入关键词开始搜索</p>
-          </div>
-        )}
+        {renderContent()}
       </div>
     </div>
   );

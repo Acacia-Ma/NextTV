@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { formatTimeRemaining } from "@/lib/util";
 
 export function ContinueWatching({ playHistory }) {
   const router = useRouter();
@@ -9,26 +10,18 @@ export function ContinueWatching({ playHistory }) {
     return null;
   }
 
-  // 格式化时间
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins} 分 ${secs} 秒`;
-  };
-
   // 格式化集数信息
-  const formatEpisodeInfo = (record) => {
+  function formatEpisodeInfo(record) {
+    const remainingTime = formatTimeRemaining(record.duration - record.currentTime);
     if (record.totalEpisodes > 1) {
-      return `第${record.currentEpisodeIndex + 1}集 • 剩余 ${formatTime(
-        record.duration - record.currentTime
-      )}`;
+      return `第${record.currentEpisodeIndex + 1}集 • 剩余 ${remainingTime}`;
     }
-    return `剩余 ${formatTime(record.duration - record.currentTime)}`;
-  };
+    return `剩余 ${remainingTime}`;
+  }
 
-  const handlePlayClick = (record) => {
+  function handlePlayClick(record) {
     router.push(`/play/${record.id}?source=${record.source}`);
-  };
+  }
 
   return (
     <div className="w-full">

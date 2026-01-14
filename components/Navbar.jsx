@@ -4,9 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { usePlayHistoryStore } from "@/store/usePlayHistoryStore";
 import { useFavoritesStore } from "@/store/useFavoritesStore";
+import { formatTimeShort } from "@/lib/util";
 import Image from "next/image";
 import Link from "next/link";
-export const Navbar = () => {
+
+export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState("");
@@ -91,11 +93,6 @@ export const Navbar = () => {
       clearFavorites();
       setShowFavoritesDropdown(false);
     }
-  };
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${String(secs).padStart(2, "0")}`;
   };
 
   return (
@@ -220,8 +217,8 @@ export const Navbar = () => {
                                 : "电影"}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
-                              {formatTime(record.currentTime)} /{" "}
-                              {formatTime(record.duration)}
+                              {formatTimeShort(record.currentTime)} /{" "}
+                              {formatTimeShort(record.duration)}
                             </p>
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-xs text-gray-400">

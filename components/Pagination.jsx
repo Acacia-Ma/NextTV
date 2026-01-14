@@ -1,4 +1,4 @@
-export const Pagination = ({ onPrev, onNext, canGoPrev = true, canGoNext = true }) => {
+export function Pagination({ onPrev, onNext, canGoPrev = true, canGoNext = true }) {
   return (
     <div className="flex items-center justify-center gap-4 mt-12 w-full">
         <button

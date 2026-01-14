@@ -13,7 +13,8 @@ import { getVideoDetail } from "@/lib/cmsApi";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { usePlayHistoryStore } from "@/store/usePlayHistoryStore";
 import { fetchDanmakuFromSources } from "@/lib/danmakuApi";
-import { extractEpisodeNumberFromTitle } from "@/lib/util";
+import { extractEpisodeNumberFromTitle, formatTime } from "@/lib/util";
+import { scrapeDoubanDetails } from "@/lib/getDouban";
 
 // ============================================================================
 // 辅助函数
@@ -37,25 +38,6 @@ function filterAdsFromM3U8(m3u8Content) {
   return filteredLines.join("\n");
 }
 
-// 格式化时间（秒 -> HH:MM:SS 或 MM:SS）
-function formatTime(seconds) {
-  if (seconds === 0) return "00:00";
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-
-  if (hours === 0) {
-    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
-      .toString()
-      .padStart(2, "0")}`;
-  } else {
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
-  }
-}
-
 // ============================================================================
 // 主组件
 // ============================================================================
@@ -74,6 +56,7 @@ export default function PlayerPage() {
   const [error, setError] = useState(null);
   const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState(0);
   const [danmaku, setDanmaku] = useState([]);
+  const [doubanActors, setDoubanActors] = useState([]);
 
   // -------------------------------------------------------------------------
   // 播放器相关的 Refs
@@ -349,6 +332,37 @@ export default function PlayerPage() {
 
     loadDanmaku();
   }, [videoDetail, currentEpisodeIndex, danmakuSources]);
+
+  // -------------------------------------------------------------------------
+  // 获取豆瓣演员数据（带头像）
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    async function loadDoubanActors() {
+      if (!videoDetail || !videoDetail.douban_id) {
+        setDoubanActors([]);
+        return;
+      }
+
+      try {
+        console.log(`获取豆瓣演员数据: 豆瓣ID=${videoDetail.douban_id}`);
+        const result = await scrapeDoubanDetails(videoDetail.douban_id);
+        
+        if (result.code === 200 && result.data.actors) {
+          // 豆瓣图片代理
+          result.data.actors.forEach((actor) => {
+            actor.avatar = actor.avatar.replace(/img\d+\.doubanio\.com/g, "img.doubanio.cmliussss.com");
+          });
+          setDoubanActors(result.data.actors);
+          console.log(`豆瓣演员数据加载完成，共 ${result.data.actors.length} 位演员`);
+        }
+      } catch (error) {
+        console.warn("获取豆瓣演员数据失败:", error.message);
+        setDoubanActors([]);
+      }
+    }
+
+    loadDoubanActors();
+  }, [videoDetail]);
 
   // -------------------------------------------------------------------------
   // 播放器初始化和 URL 切换
@@ -1052,7 +1066,7 @@ export default function PlayerPage() {
           </div>
 
           <div className="flex flex-col md:flex-row gap-8 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="w-full md:w-48 shrink-0 mx-auto md:mx-0">
+            <div className="hidden md:block w-48 shrink-0">
               <div className="aspect-2/3 rounded-xl overflow-hidden shadow-lg ring-1 ring-gray-900/5 relative group">
                 <img
                   alt={`${videoDetail.title} Poster`}
@@ -1119,23 +1133,42 @@ export default function PlayerPage() {
                   <p className="leading-relaxed">{videoDetail.desc}</p>
                 </div>
               )}
-              {videoDetail.actors && videoDetail.actors.length > 0 && (
+              {(doubanActors.length > 0 || (videoDetail.actors && videoDetail.actors.length > 0)) && (
                 <div>
                   <h3 className="text-gray-900 font-semibold mb-3">演员表</h3>
                   <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">
-                    {videoDetail.actors.map((actor, idx) => (
+                    {(doubanActors.length > 0 ? doubanActors : videoDetail.actors).map((actor, idx) => (
                       <div
-                        key={idx}
+                        key={actor.id || idx}
                         className="flex flex-col items-center gap-2 min-w-[70px]"
                       >
                         <div className="size-16 rounded-full overflow-hidden border border-gray-200 shadow-sm bg-gray-100 flex items-center justify-center">
-                          <span className="material-symbols-outlined text-gray-400 text-2xl">
+                          {actor.avatar ? (
+                            <img
+                              src={actor.avatar}
+                              alt={actor.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span 
+                            className="material-symbols-outlined text-gray-400 text-2xl"
+                            style={{ display: actor.avatar ? 'none' : 'flex' }}
+                          >
                             person
                           </span>
                         </div>
                         <span className="text-xs font-medium text-gray-900 text-center truncate w-full">
                           {actor.name}
                         </span>
+                        {actor.role && (
+                          <span className="text-xs text-gray-500 text-center truncate w-full">
+                            {actor.role}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
