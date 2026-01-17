@@ -12,7 +12,6 @@ import { EpisodeList } from "@/components/EpisodeList";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { usePlayHistoryStore } from "@/store/usePlayHistoryStore";
 import { formatTime } from "@/lib/util";
-import { filterAdsFromM3U8 } from "@/lib/util";
 import { getVideoDetail } from "@/lib/cmsApi";
 import { scrapeDoubanDetails } from "@/lib/getDouban";
 import { createDanmakuLoader } from "@/lib/danmakuApi";
@@ -32,9 +31,7 @@ export default function PlayerPage() {
   const addPlayRecord = usePlayHistoryStore((state) => state.addPlayRecord);
   const getPlayRecord = usePlayHistoryStore((state) => state.getPlayRecord);
   const danmakuSources = useSettingsStore((state) => state.danmakuSources);
-  const blockAdEnabled = useSettingsStore((state) => state.blockAdEnabled);
   const skipConfig = useSettingsStore((state) => state.skipConfig);
-
   // -------------------------------------------------------------------------
   // 状态
   // -------------------------------------------------------------------------
@@ -43,19 +40,20 @@ export default function PlayerPage() {
   const [doubanActors, setDoubanActors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
   // -------------------------------------------------------------------------
   // 播放器相关的 Refs（只保留必要的）
   // -------------------------------------------------------------------------
   const artRef = useRef(null); // 播放器容器 DOM
   const artPlayerRef = useRef(null); // Artplayer 实例
-  const blockAdEnabledRef = useRef(blockAdEnabled);
   // 时间控制
   const lastSkipCheckRef = useRef(0);
   const lastSaveTimeRef = useRef(0);
   // 初始化剧集
   const initialEpisodeIndex = useRef(0);
   const initialTime = useRef(0);
-
+  const blockAdEnabledRef = useRef(null);
+  const skipConfigRef = useRef(null);
   // ============================================================================
   // 普通版本的响应式函数
   // ============================================================================
@@ -282,31 +280,9 @@ export default function PlayerPage() {
       }, 1000);
     }
   });
-  // Custom HLS Loader (Ad blocking)
-  class CustomHlsJsLoader extends Hls.DefaultConfig.loader {
-    constructor(config) {
-      super(config);
-      const load = this.load.bind(this);
-      this.load = function (context, config, callbacks) {
-        if (context.type === "manifest" || context.type === "level") {
-          const onSuccess = callbacks.onSuccess;
-          callbacks.onSuccess = function (response, stats, context) {
-            if (response.data && typeof response.data === "string") {
-              response.data = filterAdsFromM3U8(response.data, videoDetail.source_url || "");
-            }
-            return onSuccess(response, stats, context, null);
-          };
-        }
-        load(context, config, callbacks);
-      };
-    }
-  }
   // -------------------------------------------------------------------------
   // Load data
   // -------------------------------------------------------------------------
-  useEffect(() => {
-    blockAdEnabledRef.current = blockAdEnabled;
-  }, [blockAdEnabled]);
 
   useEffect(() => {
     async function loadData() {
@@ -329,7 +305,6 @@ export default function PlayerPage() {
 
       try {
         const videoDetailData = await getVideoDetail(id, sourceConfig.name, sourceConfig.url);
-        
         // 2. Read play record, determine initial episode
         const playHistory = usePlayHistoryStore.getState().playHistory;
         const playRecord = playHistory.find((item) => item.source === source && item.id === id);
@@ -353,6 +328,16 @@ export default function PlayerPage() {
         }
         
         // Batch updates to avoid multiple re-renders
+        // check removead enabled
+        const enableRemoveAd = useSettingsStore.getState().blockAdEnabled;
+        const skipConfig = useSettingsStore.getState().skipConfig;
+        blockAdEnabledRef.current = enableRemoveAd;
+        skipConfigRef.current = skipConfig;
+        if (enableRemoveAd) {
+          videoDetailData.episodes = videoDetailData.episodes.map((episode) => {
+            return "/api/filterad?url=" + episode;
+          });
+        }
         setVideoDetail(videoDetailData);
         setCurrentEpisodeIndex(initialEpisodeIndex.current);
         setDoubanActors(actorsData);
@@ -375,8 +360,9 @@ export default function PlayerPage() {
     if (loading || !videoDetail || !artRef.current || artPlayerRef.current) {
       return;
     }
-
+    
     try {
+      console.log("重新初始化播放器了！")
       const currentUrl = videoDetail?.episodes?.[initialEpisodeIndex.current] || "";
       const currentTitle = videoDetail?.episodes_titles?.[initialEpisodeIndex.current] || `第${initialEpisodeIndex.current + 1}集`;
 
@@ -463,7 +449,6 @@ export default function PlayerPage() {
               maxBufferLength: 30,
               backBufferLength: 30,
               maxBufferSize: 60 * 1000 * 1000,
-              loader: blockAdEnabledRef.current ? CustomHlsJsLoader : Hls.DefaultConfig.loader,
             });
 
             hls.loadSource(url);
@@ -500,8 +485,8 @@ export default function PlayerPage() {
           {
             html: "去广告",
             icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="50%" font-size="14" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="currentColor">AD</text></svg>',
-            tooltip: blockAdEnabled ? "已开启" : "已关闭",
-            switch: blockAdEnabled,
+            tooltip: blockAdEnabledRef.current ? "已开启" : "已关闭",
+            switch: blockAdEnabledRef.current,
             onSwitch: function (item) {
               const newVal = !item.switch;
               useSettingsStore.getState().setBlockAdEnabled(newVal);
@@ -513,8 +498,8 @@ export default function PlayerPage() {
           },
           {
             html: "跳过片头片尾",
-            tooltip: skipConfig.enable ? "已开启" : "已关闭",
-            switch: skipConfig.enable,
+            tooltip: skipConfigRef.current.enable ? "已开启" : "已关闭",
+            switch: skipConfigRef.current.enable,
             onSwitch: function (item) {
               // 使用 getState() 获取最新的 skipConfig，避免闭包捕获旧值
               const currentSkipConfig = useSettingsStore.getState().skipConfig;
@@ -532,7 +517,7 @@ export default function PlayerPage() {
           {
             html: "设置片头",
             icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="12" r="2" fill="currentColor"/><path d="M10 12L17 12" stroke="currentColor" stroke-width="2"/><path d="M17 7L17 17" stroke="currentColor" stroke-width="2"/></svg>',
-            tooltip: skipConfig.intro_time === 0 ? "点击设置片头时间" : `片头：${formatTime(skipConfig.intro_time)}`,
+            tooltip: skipConfigRef.current.intro_time === 0 ? "点击设置片头时间" : `片头：${formatTime(skipConfigRef.current.intro_time)}`,
             onClick: function () {
               if (artPlayerRef.current) {
                 const currentTime = artPlayerRef.current.currentTime || 0;
@@ -553,7 +538,7 @@ export default function PlayerPage() {
           {
             html: "设置片尾",
             icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 7L7 17" stroke="currentColor" stroke-width="2"/><path d="M7 12L14 12" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="12" r="2" fill="currentColor"/></svg>',
-            tooltip: skipConfig.outro_time >= 0 ? "点击设置片尾时间" : `片尾：${formatTime(-skipConfig.outro_time)}`,
+            tooltip: skipConfigRef.current.outro_time >= 0 ? "点击设置片尾时间" : `片尾：${formatTime(-skipConfigRef.current.outro_time)}`,
             onClick: function () {
               if (artPlayerRef.current) {
                 const outroTime = -(artPlayerRef.current.duration - artPlayerRef.current.currentTime) || 0;
