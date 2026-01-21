@@ -331,15 +331,15 @@ export function Navbar() {
             )}
           </div>
 
-          <button
+          <Link
+            href="/settings"
             aria-label="Settings"
             className={`flex items-center justify-center size-10 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors cursor-pointer btn-press ${
               pathname === "/settings" ? "bg-gray-100 text-gray-900" : ""
             }`}
-            onClick={() => router.push("/settings")}
           >
             <span className="material-symbols-outlined">settings</span>
-          </button>
+          </Link>
         </div>
       </header>
     </div>

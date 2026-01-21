@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { getVideoDetail } from "@/lib/cmsApi";
 import { testStreamUrl } from "@/lib/clientSpeedTest";
 
@@ -8,10 +8,10 @@ import { testStreamUrl } from "@/lib/clientSpeedTest";
 const resultCache = new Map();
 const CACHE_DURATION = 60 * 1000; // 1 minute
 
-export function SpeedTestBadge({ videoId, sourceKey, sourceUrl }) {
+export function SpeedTestBadge({ videoId, sourceKey, sourceName, sourceUrl }) {
   const cacheKey = `${videoId}-${sourceKey}`;
   
-  const getCachedResult = () => {
+  const getCachedResult = useCallback(() => {
     if (resultCache.has(cacheKey)) {
       const cached = resultCache.get(cacheKey);
       if (Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -21,7 +21,7 @@ export function SpeedTestBadge({ videoId, sourceKey, sourceUrl }) {
       }
     }
     return null;
-  };
+  }, [cacheKey]);
 
   const initialResult = getCachedResult();
   const [loading, setLoading] = useState(!initialResult);
@@ -43,7 +43,7 @@ export function SpeedTestBadge({ videoId, sourceKey, sourceUrl }) {
       try {
         setLoading(true);
         // 1. Get video details
-        const detail = await getVideoDetail(videoId, sourceKey, sourceUrl);
+        const detail = await getVideoDetail(videoId, sourceKey, sourceName, sourceUrl);
         
         if (!detail || !detail.episodes || detail.episodes.length === 0) {
           throw new Error("No episodes found");
@@ -83,7 +83,7 @@ export function SpeedTestBadge({ videoId, sourceKey, sourceUrl }) {
     return () => {
       mounted = false;
     };
-  }, [videoId, sourceKey, sourceUrl, cacheKey]);
+  }, [videoId, sourceKey, sourceUrl, cacheKey, getCachedResult, sourceName]);
 
   if (loading) {
     return (
@@ -113,21 +113,19 @@ export function SpeedTestBadge({ videoId, sourceKey, sourceUrl }) {
       speedText = `${speedBps} B/s`;
   }
 
-  // Color coding based on speed
-  // > 5MB/s (5 * 1024 * 1024) or < 200ms
-  // > 1MB/s or < 800ms
-  let colorClass = "bg-red-500/70";
-  const speedMb = speedBps / 1048576;
+  // Color coding based on latency only
+  let colorClass = "bg-red-500/70 text-white";
+  const latency = result.responseTime || 9999;
   
-  if (speedMb > 5 || (result.responseTime && result.responseTime < 200)) {
-    colorClass = "bg-green-500/70";
-  } else if (speedMb > 1 || (result.responseTime && result.responseTime < 800)) {
+  if (latency < 600) {
+    colorClass = "bg-green-500/70 text-white";
+  } else if (latency <= 1000) {
     colorClass = "bg-yellow-500/70 text-black";
   }
 
   return (
     <div className="absolute top-2 left-2 z-10">
-      <div className={`${colorClass} text-white shadow-sm backdrop-blur-md rounded-md px-2 py-1 flex flex-col items-start gap-0.5 min-w-[50px]`}>
+      <div className={`${colorClass} shadow-sm backdrop-blur-md rounded-md px-2 py-1 flex flex-col items-start gap-0.5 min-w-[50px]`}>
          <span className="text-[10px] font-bold leading-none">{result.responseTime}ms</span>
          {speedText && (
             <span className="text-[9px] font-medium leading-none whitespace-nowrap opacity-90">

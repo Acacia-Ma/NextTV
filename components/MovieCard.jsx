@@ -69,7 +69,8 @@ export function MovieCard({ movie }) {
         {movie.source && movie.source_url && (
             <SpeedTestBadge 
                 videoId={movie.id} 
-                sourceKey={movie.source} 
+                sourceKey={movie.source}
+                sourceName={movie.source_name}
                 sourceUrl={movie.source_url} 
             />
         )}
