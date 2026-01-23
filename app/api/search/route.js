@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
-import { unstable_cache } from "next/cache";
+import {NextResponse} from "next/server";
+import {unstable_cache} from "next/cache";
 
 const getSearchData = unstable_cache(
   async (url) => {
     const response = await fetch(decodeURIComponent(url), {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
     if (!response.ok) {
@@ -18,15 +19,15 @@ const getSearchData = unstable_cache(
   {
     revalidate: 3600,
     tags: ["search"],
-  }
+  },
 );
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const {searchParams} = new URL(request.url);
     const apiUrl = searchParams.get("apiUrl");
     console.log("apiUrl", decodeURIComponent(apiUrl));
     if (!apiUrl) {
-      return NextResponse.json({ error: "缺少 apiUrl 参数" }, { status: 400 });
+      return NextResponse.json({error: "缺少 apiUrl 参数"}, {status: 400});
     }
 
     const data = await getSearchData(apiUrl);
@@ -34,6 +35,9 @@ export async function GET(request) {
     return NextResponse.json(data);
   } catch (error) {
     console.error("搜索 API 代理错误:", error);
-    return NextResponse.json({ error: error.message || "服务器错误" }, { status: 500 });
+    return NextResponse.json(
+      {error: error.message || "服务器错误"},
+      {status: 500},
+    );
   }
 }

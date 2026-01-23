@@ -3,12 +3,27 @@
 import { useRouter } from "next/navigation";
 import { SpeedTestBadge } from "@/components/SpeedTestBadge";
 
+import { useSettingsStore } from "@/store/useSettingsStore";
+
 export function MovieCard({ movie }) {
   const router = useRouter();
-  const douban_image_url = movie.poster.replace(
-    /img\d+\.doubanio\.com/g,
-    "img.doubanio.cmliussss.com"
-  );
+  const doubanImageProxy = useSettingsStore((state) => state.doubanImageProxy);
+
+  let douban_image_url = movie.poster;
+
+  // 只代理豆瓣的图片
+  if (douban_image_url.includes("doubanio")) {
+    if (doubanImageProxy === 'server') {
+      // 使用本地 API 代理
+      douban_image_url = `/api/douban/image?url=${encodeURIComponent(movie.poster)}`;
+    } else {
+      // 使用 CDN 替换
+      douban_image_url = movie.poster.replace(
+        /img\d+\.doubanio\.com/g,
+        doubanImageProxy
+      );
+    }
+  }
 
   const handleClick = () => {
     // 如果有 source 信息（从 API 搜索来的），则传递 source 参数到播放页面
@@ -67,12 +82,12 @@ export function MovieCard({ movie }) {
           </div>
         )}
         {movie.source && movie.source_url && (
-            <SpeedTestBadge 
-                videoId={movie.id} 
-                sourceKey={movie.source}
-                sourceName={movie.source_name}
-                sourceUrl={movie.source_url} 
-            />
+          <SpeedTestBadge
+            videoId={movie.id}
+            sourceKey={movie.source}
+            sourceName={movie.source_name}
+            sourceUrl={movie.source_url}
+          />
         )}
       </div>
       <div>

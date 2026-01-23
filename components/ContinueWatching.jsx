@@ -2,9 +2,77 @@
 
 import { useRouter } from "next/navigation";
 import { formatTimeRemaining } from "@/lib/util";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import { useEffect, useState } from "react";
 
 export function ContinueWatching({ playHistory }) {
   const router = useRouter();
+  const { videoSources } = useSettingsStore();
+  const [updatedEpisodes, setUpdatedEpisodes] = useState({});
+
+  useEffect(() => {
+    if (!playHistory || playHistory.length === 0) return;
+
+    const checkUpdates = async () => {
+      // 1. 取前6条记录
+      const recentHistory = playHistory.slice(0, 6);
+
+      // 记录原始顺序，用于后续可能需要的排序（虽然这里我们只更新 updatedEpisodes map，不重新排序 playHistory）
+      // 如果后续需求改变需要改变 playHistory 顺序，利用这个 originalOrderMap 即可
+      // const originalOrderMap = new Map(recentHistory.map((item, index) => [item.id, index]));
+
+      // 2. 按 source 分组
+      const groupedBySource = recentHistory.reduce((acc, item) => {
+        if (!acc[item.source]) {
+          acc[item.source] = [];
+        }
+        acc[item.source].push(item);
+        return acc;
+      }, {});
+
+      // 3. 遍历分组请求更新
+      const updates = {};
+
+      await Promise.all(
+        Object.entries(groupedBySource).map(async ([sourceKey, items]) => {
+          // 获取该 source 的 API 地址
+          const sourceConfig = videoSources.find(s => s.key === sourceKey);
+          if (!sourceConfig || !sourceConfig.url) return;
+
+          const ids = items.map(item => item.id).join(',');
+
+          try {
+            const res = await fetch(
+              `/api/detail/upgrade?ids=${ids}&sourceUrl=${sourceConfig.url}`
+            );
+            const data = await res.json();
+
+            // 处理可能的嵌套结构
+            const episodeLengths = data.episodeLength?.episodeLength || data.episodeLength;
+
+            if (Array.isArray(episodeLengths)) {
+              items.forEach((item, index) => {
+                const currentTotal = item.totalEpisodes || 0;
+                const newTotal = episodeLengths[index];
+
+                // 如果获取到的总集数大于记录的总集数，说明有更新
+                if (newTotal > currentTotal) {
+                  updates[`${item.source}-${item.id}`] = newTotal - currentTotal;
+                }
+              });
+            }
+          } catch (error) {
+            console.error(`Failed to check updates for source ${sourceKey}:`, error);
+          }
+        })
+      );
+
+      setUpdatedEpisodes(updates);
+    };
+
+    checkUpdates();
+  }, [playHistory, videoSources]);
+
   if (!playHistory || playHistory.length === 0) {
     return null;
   }
@@ -38,6 +106,16 @@ export function ContinueWatching({ playHistory }) {
             className="group relative shrink-0 w-[280px] bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
             onClick={() => handlePlayClick(record)}
           >
+            {updatedEpisodes[`${record.source}-${record.id}`] > 0 && (
+              <div className="absolute top-0 right-0 z-20">
+                <div className="relative">
+                  <span className="absolute -left-1 top-1 animate-ping inline-flex h-3 w-3 rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative flex items-center justify-center bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold shadow-sm">
+                    更新 {updatedEpisodes[`${record.source}-${record.id}`]} 集
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="flex gap-4 p-4">
               {/* 海报 */}
               <div className="relative w-24 h-36 bg-gray-100 rounded-lg overflow-hidden shrink-0">
@@ -46,6 +124,7 @@ export function ContinueWatching({ playHistory }) {
                   alt={record.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+
                 {record.source && (
                   <div className="absolute top-1 left-1 z-10">
                     <span className="bg-primary/90 text-white text-xs px-2 py-1 rounded-md font-medium shadow-sm">

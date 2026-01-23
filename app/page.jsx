@@ -5,6 +5,7 @@ import { SkeletonCard } from "@/components/SkeletonCard";
 import { ContinueWatching } from "@/components/ContinueWatching";
 import { SearchBox } from "@/components/SearchBox";
 import { usePlayHistoryStore } from "@/store/usePlayHistoryStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
 import { fetchRecommendations, loadUserTags, saveUserTags, defaultMovieTags, defaultTvTags, convertDoubanToMovie } from "@/lib/doubanApi";
 
 export default function Home() {
@@ -20,6 +21,8 @@ export default function Home() {
 
   // 获取播放记录
   const playHistory = usePlayHistoryStore((state) => state.playHistory);
+  // 获取豆瓣代理设置
+  const doubanProxy = useSettingsStore((state) => state.doubanProxy);
 
   useEffect(() => {
     const { movieTags: loadedMovieTags, tvTags: loadedTvTags } = loadUserTags();
@@ -30,7 +33,7 @@ export default function Home() {
   const loadMovies = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchRecommendations(mediaType, currentTag, pageSize, page * pageSize);
+      const data = await fetchRecommendations(mediaType, currentTag, pageSize, page * pageSize, doubanProxy);
       const converted = data.subjects.map(convertDoubanToMovie);
       setMovies(converted);
     } catch (error) {
@@ -39,7 +42,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [mediaType, currentTag, page]);
+  }, [mediaType, currentTag, page, doubanProxy]);
 
   useEffect(() => {
     loadMovies();

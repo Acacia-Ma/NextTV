@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSettingsStore } from "@/store/useSettingsStore";
 
 const SourceItem = ({
@@ -159,6 +159,77 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+// Custom Select Component
+const CustomSelect = ({ value, onChange, options, label }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl px-4 py-3 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary ${
+          isOpen ? "ring-2 ring-primary/20 border-primary bg-white" : "hover:bg-gray-100 hover:border-gray-300"
+        }`}
+      >
+        <span className="truncate mr-2 font-medium">{selectedOption.label}</span>
+        <span
+          className={`material-symbols-outlined text-gray-500 transition-transform duration-300 ease-in-out ${
+            isOpen ? "rotate-180 text-primary" : ""
+          }`}
+        >
+          expand_more
+        </span>
+      </button>
+
+      <div
+        className={`absolute z-20 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transform transition-all duration-200 ease-out origin-top ${
+          isOpen
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+        }`}
+      >
+        <div className="max-h-60 overflow-y-auto py-1">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors duration-150 flex items-center justify-between ${
+                option.value === value
+                  ? "bg-primary/5 text-primary font-semibold"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              <span>{option.label}</span>
+              {option.value === value && (
+                <span className="material-symbols-outlined text-[18px]">check</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Settings() {
   const {
     videoSources,
@@ -171,6 +242,10 @@ export default function Settings() {
     resetToDefaults,
     exportSettings,
     importSettings,
+    doubanProxy,
+    doubanImageProxy,
+    setDoubanProxy,
+    setDoubanImageProxy,
   } = useSettingsStore();
 
   // State for modals and forms
@@ -312,6 +387,19 @@ export default function Settings() {
       source.url.toLowerCase().includes(searchDanmaku.toLowerCase())
   );
 
+  const doubanProxyOptions = [
+    { value: "https://movie.douban.com", label: "直连 (movie.douban.com)" },
+    { value: "https://movie.douban.cmliussss.net", label: "腾讯云 CDN (cmliussss.net)" },
+    { value: "https://movie.douban.cmliussss.com", label: "阿里云 CDN (cmliussss.com)" },
+  ];
+
+  const doubanImageProxyOptions = [
+    { value: "server", label: "服务器转发 (推荐)" },
+    { value: "img.doubanio.cmliussss.net", label: "腾讯云 CDN (cmliussss.net)" },
+    { value: "img.doubanio.cmliussss.com", label: "阿里云 CDN (cmliussss.com)" },
+  ];
+
+
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Video Sources */}
@@ -370,6 +458,40 @@ export default function Settings() {
               onMoveDown={(id) => moveSource(id, "down", "video")}
             />
           ))}
+        </div>
+      </section>
+
+      {/* Douban Configuration */}
+      <section className="bg-white rounded-2xl shadow-soft p-4 md:p-8 mt-8 border border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">豆瓣配置</h2>
+            <p className="text-gray-500 mt-1">配置豆瓣 API 和图片代理以防止连接问题</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">豆瓣 API 代理</label>
+            <CustomSelect
+              value={doubanProxy}
+              onChange={setDoubanProxy}
+              options={doubanProxyOptions}
+              label="豆瓣 API 代理"
+            />
+            <p className="text-xs text-gray-500">选择用于获取豆瓣数据的接口地址</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">豆瓣图片代理</label>
+            <CustomSelect
+              value={doubanImageProxy}
+              onChange={setDoubanImageProxy}
+              options={doubanImageProxyOptions}
+              label="豆瓣图片代理"
+            />
+            <p className="text-xs text-gray-500">选择用于加载电影海报的图片代理</p>
+          </div>
         </div>
       </section>
 

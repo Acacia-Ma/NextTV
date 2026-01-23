@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { unstable_cache } from "next/cache";
+import {NextResponse} from "next/server";
+import {unstable_cache} from "next/cache";
 
 // 创建缓存函数，根据 URL 自动缓存不同的请求
 const getDoubanData = unstable_cache(
   async (url) => {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         Referer: "https://movie.douban.com/",
         Accept: "application/json, text/plain, */*",
       },
@@ -22,7 +23,7 @@ const getDoubanData = unstable_cache(
   {
     revalidate: 3600, // 1小时缓存
     tags: ["douban"],
-  }
+  },
 );
 
 export async function GET(request) {
@@ -32,9 +33,11 @@ export async function GET(request) {
     const tag = searchParams.get("tag") || "热门";
     const pageLimit = searchParams.get("page_limit") || "12";
     const pageStart = searchParams.get("page_start") || "0";
+    const proxy =
+      searchParams.get("douban_proxy") || "https://movie.douban.cmliussss.com";
 
     // 构建豆瓣API URL
-    const doubanUrl = `https://movie.douban.cmliussss.com/j/search_subjects?type=${type}&tag=${encodeURIComponent(tag)}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
+    const doubanUrl = `${proxy}/j/search_subjects?type=${type}&tag=${encodeURIComponent(tag)}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
     const data = await getDoubanData(doubanUrl);
 
@@ -54,7 +57,7 @@ export async function GET(request) {
         message: error.message,
         subjects: [],
       },
-      { status: 500 }
+      {status: 500},
     );
   }
 }

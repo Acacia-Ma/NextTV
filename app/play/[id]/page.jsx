@@ -118,7 +118,7 @@ export default function PlayerPage() {
                         </span>
                      )}
                      <span>全 {videoDetail.episodes?.length || 1} 集</span>
-                     <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs">{videoDetail.source || source}</span>
+                     <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs">{videoDetail.source_name || source}</span>
                    </div>
                  </div>
                  
